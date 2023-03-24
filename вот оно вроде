@@ -1,0 +1,77 @@
+import requests
+from bs4 import BeautifulSoup as b
+import telebot
+from telebot import types
+import random
+
+#ПАРСЕР
+URL = 'https://www.anekdot.ru/'
+def parser(url):
+    r = requests.get(url)
+    soup = b(r.text, 'html.parser')
+    anekdots = soup.find_all('div', class_='text')
+    return [c.text for c in anekdots]
+
+list_of_jokes = parser(URL)
+random.shuffle(list_of_jokes)
+
+#КОНЕЦ ПАРСЕРА
+
+bot = telebot.TeleBot('6011607703:AAGAVf8TJD5RV50ZZqS3bM9VOk1gBMJRrTg')
+
+@bot.message_handler(commands=['anekdotik'])
+def anekdotik(message):
+    bot.send_message(message.chat.id, 'Хихикаем: ')
+    bot.send_message(message.chat.id, list_of_jokes[0])
+    del list_of_jokes[0]
+
+
+
+@bot.message_handler(commands=['start'])
+def start(message):
+    mess = f'Приветики-пистолетики, <b>{message.from_user.first_name} {message.from_user.last_name}</b>! Нажми /help'
+    bot.send_message(message.chat.id, mess, parse_mode='html')
+
+@bot.message_handler(commands=['help'])
+def help(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    website = types.KeyboardButton('/website')
+    hello = types.KeyboardButton('Hello')
+    id = types.KeyboardButton('id')
+    photo = types.KeyboardButton('photo')
+    anekdotik = types.KeyboardButton('/anekdotik')
+
+    markup.add(website, hello, id, photo, anekdotik)
+    bot.send_message(message.chat.id, 'Я умею делать кнопочки! '
+                                      'Ниже представлены команды, также можешь отправить мне фоточку '
+                                      'и я обязательно на нее отвечу, ну и попробуй '
+                                      'белеберду написать какую-нибудь'
+                     , parse_mode='html', reply_markup=markup)
+
+@bot.message_handler(commands=['website'])
+def website(message):
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton('Кто мне помог в создании', url='https://vk.com/seriousad'))
+    bot.send_message(message.chat.id, 'Рекомендую к просмотру!', reply_markup=markup)
+
+@bot.message_handler(content_types=['text'])
+def get_user_text(message):
+    if message.text == 'Hello':
+        bot.send_message(message.chat.id, 'Приветики-пистолетики!!', parse_mode='html')
+    elif message.text == 'id':
+        bot.send_message(message.chat.id, f'Смотри, я хакер! Твой ID: {message.from_user.id}', parse_mode='html')
+    elif message.text == 'photo':
+        photo = open('kotdlyabota.jpg', 'rb')
+        bot.send_photo(message.chat.id, photo)
+        bot.send_message(message.chat.id, 'Это я, хех')
+    else:
+        bot.send_message(message.chat.id, 'Может че-нибудь умное скажешь... ну я же пока только'
+                                          ' учусь, попробуй то, что я умею!!!', parse_mode='html')
+
+@bot.message_handler(content_types=['photo'])
+def get_user_photo(message):
+    bot.send_message(message.chat.id, f'{message.from_user.first_name}, вау, фотка супер!')
+
+
+
+bot.polling(none_stop=True)
